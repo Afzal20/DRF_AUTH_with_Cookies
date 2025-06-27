@@ -22,6 +22,7 @@ class UserRegistratioinSerializer(serializers.ModelSerializer):
         user.save()
         return user
     
+
 # create a custom user serializer for user login
 class UserLoginSerializer(serializers.Serializer):
     email = serializers.CharField(max_length=255)
@@ -48,3 +49,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ('user', 'created_at', 'updated_at')
 
+
+class EmptySerializer(serializers.Serializer):
+    """
+    An empty serializer that can be used for testing purposes.
+    """
+    pass

@@ -8,10 +8,11 @@ from Accounts.serializers import (
     UserLoginSerializer,
     UserProfileSerializer,
     UserRegistratioinSerializer,
+    EmptySerializer
 )
 
+from rest_framework_simplejwt.views import TokenVerifyView
 from rest_framework import permissions
-
 from rest_framework import generics, status
 from Accounts.models import CustomUserModel, UserProfile
 
@@ -24,6 +25,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class UserRegistrationView(generics.CreateAPIView):
     """
     View to handle user registration.
@@ -110,7 +112,6 @@ class UserLoginView(APIView):
 
         return response
 
-
 class UserProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = UserProfileSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -131,3 +132,89 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
+
+
+class CustomTokenRefreshView(TokenRefreshView):
+    """
+    Reads refresh token from HTTP-only cookie, refreshes access and refresh tokens,
+    and sets them back as cookies in the response.
+    """
+    def post(self, request, *args, **kwargs):
+        # Try to get refresh token from cookie
+        refresh_token = request.COOKIES.get('refresh_token')
+
+        if not refresh_token:
+            return Response({'detail': 'Refresh token not provided.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        # Create data dict for serializer
+        data = {'refresh': refresh_token}
+
+        serializer = self.get_serializer(data=data)
+
+        try:
+            serializer.is_valid(raise_exception=True)
+        except Exception as e:
+            return Response({'detail': 'Invalid or expired refresh token.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        access_token = serializer.validated_data.get('access')
+        new_refresh_token = serializer.validated_data.get('refresh', refresh_token)  # use new if provided
+
+        response = Response({'detail': 'Token refreshed successfully'})
+
+        # Set tokens in HTTP-only cookies
+        response.set_cookie(
+            key='access_token',
+            value=access_token,
+            httponly=True,
+            secure=True,  # Only over HTTPS in production
+            samesite='Lax',
+            max_age=60 * 5,  # adjust to match your access token lifetime
+        )
+
+        response.set_cookie(
+            key='refresh_token',
+            value=new_refresh_token,
+            httponly=True,
+            secure=True,
+            samesite='Lax',
+            max_age=60 * 60 * 24 * 7,  # adjust to match your refresh token lifetime
+        )
+
+        return response
+    
+class CustomTokenVerifyView(TokenVerifyView):
+    """
+    it should read tokens from HTTP-only cookies and verify them.
+    If the token is valid, it returns a success response
+    """
+    def post(self, request, *args, **kwargs):
+        access_token = request.COOKIES.get('access_token')
+
+        if not access_token:
+            return Response({'detail': 'Access token not provided.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        data = {'token': access_token}
+        serializer = self.get_serializer(data=data)
+
+        try:
+            serializer.is_valid(raise_exception=True)
+        except Exception as e:
+            return Response({'detail': 'Invalid or expired access token.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        return Response({'detail': 'token_is_valid'}, status=status.HTTP_200_OK)
+    
+
+class LogoutView(APIView):
+    """
+    View to handle user logout. it should delete the access and refresh tokens from cookies.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+
+        response = Response({'detail': 'Logged out successfully'}, status=status.HTTP_200_OK)
+        # Clear cookies
+        response.delete_cookie('access_token')
+        response.delete_cookie('refresh_token')
+
+        return response

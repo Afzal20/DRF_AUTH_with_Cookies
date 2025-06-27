@@ -62,7 +62,7 @@ class UserProfile(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.first_name}'s Profile"
+        return f"{self.user.email}"
 
 @receiver(post_save, sender=CustomUserModel)
 def create_user_profile(sender, instance, created, **kwargs):
