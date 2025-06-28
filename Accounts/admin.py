@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.utils.translation import gettext_lazy as _
-from .models import CustomUserModel, UserProfile
+from .models import CustomUserModel, DeleteAccuntsList, EmailOTP, UserProfile
 
 
 class CustomUserAdmin(UserAdmin):
@@ -26,14 +26,29 @@ class CustomUserAdmin(UserAdmin):
     search_fields = ('email', 'first_name', 'last_name')
     ordering = ('email',)
 
-# class CustomUserProfileAdmin(admin.ModelAdmin):
-#     models = Profile
-#     list_display = ('user_first_name', 'user_last_name', 'profileImaqge')
-#     list_filter = ('user_first_name', 'user_last_name',)
+class CustomUserProfileAdmin(admin.ModelAdmin):
+    models = UserProfile
+    list_display = ('first_name', 'last_name', 'phone_number', 'district', 'upozila', 'city', 'profile_image', 'created_at', 'updated_at')
+    list_filter = ('first_name', 'last_name', 'phone_number', 'district', 'upozila',)
 
-#     ordering = ('user__email',)
+    ordering = ('user__email',)
+
+class EmailOTPAdmin(admin.ModelAdmin):
+    models = EmailOTP
+    list_display = ('user', 'otp', 'expires_at', 'created_at')
+    list_filter = ('user', 'expires_at', 'created_at')
+
+    ordering = ('-created_at',)
+    
+class DeleteAccuntsListAdmin(admin.ModelAdmin):
+    models = DeleteAccuntsList
+    list_display = ('email', 'delete_at')
+    list_filter = ('delete_at',)
+
+    ordering = ('-delete_at',)
 
 
 admin.site.register(CustomUserModel, CustomUserAdmin)
-# admin.site.register(Profile, CustomUserProfileAdmin)
-admin.site.register(UserProfile)
+admin.site.register(UserProfile, CustomUserProfileAdmin)
+admin.site.register(EmailOTP, EmailOTPAdmin)
+admin.site.register(DeleteAccuntsList, DeleteAccuntsListAdmin)
