@@ -6,6 +6,7 @@ from rest_framework import permissions
 from django.conf import settings
 from django.conf.urls.static import static
 
+from django.views.decorators.csrf import csrf_exempt
 
 # setuping schema
 schema_view = get_schema_view (
@@ -15,12 +16,15 @@ schema_view = get_schema_view (
         description="This API is for authenticate users",
     ),
     public=True, 
-    permission_classes=[permissions.AllowAny]
+    permission_classes=(permissions.AllowAny,),
+    authentication_classes=[]
 )
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    re_path(r'docs/$', schema_view.with_ui('swagger', cache_timeout=0), name='docs'),
+    # re_path(r'docs/$', schema_view.with_ui('swagger', cache_timeout=0), name='docs'),
+    re_path(r'^docs/$', csrf_exempt(schema_view.with_ui('swagger', cache_timeout=0)), name='docs'),
     path('accounts/', include('Accounts.urls'), name='account_uers')
     
 ]

@@ -2,7 +2,7 @@ from datetime import timedelta
 from django.db import models
 from django.contrib.auth.base_user import BaseUserManager
 from django.utils.translation import gettext_lazy as _
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, PermissionsMixin
 from django.conf import settings
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -36,18 +36,25 @@ class CustomUserManager(BaseUserManager):
 
         return self.create_user(email, password, **extra_fields)
     
-class CustomUserModel(AbstractUser):
-
+class CustomUserModel(AbstractUser, PermissionsMixin):
     email = models.EmailField(_('email addresh'), unique=True)
     username = None
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
+    OTP = models.CharField(max_length=6, blank=True, null=True)
+    OTP_expiry = models.DateTimeField(blank=True, null=True)
+    is_OTP_varified = models.BooleanField(default=False)
 
     objects = CustomUserManager()
 
+    def generate_otp(self):
+        self.OTP = str(random.randint(100000, 999999))
+        self.OTP_expiry = timezone.now() + timedelta(minutes=5)
+        self.is_OTP_varified = False
+        self.save()
+
     def __str__(self):
         return self.email
-
 
 class UserProfile(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile")
@@ -74,39 +81,7 @@ def create_user_profile(sender, instance, created, **kwargs):
 @receiver(post_save, sender=CustomUserModel)
 def save_user_profile(sender, instance, **kwargs):
     instance.profile.save()
-
-
-class EmailOTP(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='otp_records')
-    otp = models.CharField(max_length=6)
-    created_at = models.DateTimeField(auto_now_add=True)
-    expires_at = models.DateTimeField(blank=True)
-    is_valid = models.BooleanField(default=True)
-
-    class Meta:
-        verbose_name = "Email OTP"
-        verbose_name_plural = "Email OTPs"
-
-    def __str__(self):
-        return f"OTP for {self.user.email} - {self.otp}"
-
-    def is_expired(self):
-        return timezone.now() > self.expires_at
-
-    def save(self, *args, **kwargs):
-        if not self.expires_at:
-            self.expires_at = timezone.now() + timedelta(minutes=10)
-        if self.is_expired():
-            self.is_valid = False
-        super().save(*args, **kwargs)
     
-    def generate_otp(self):
-        self.otp = str(random.randint(100000, 999999))
-        self.is_valid = True
-        self.expires_at = timezone.now() + timedelta(minutes=10)
-        self.save()
-
-        
 class DeleteAccuntsList(models.Model):
     email = models.EmailField(unique=True)
     delete_at = models.DateTimeField(auto_now_add=True)

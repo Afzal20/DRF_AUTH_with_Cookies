@@ -5,9 +5,10 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
 from Accounts.serializers import (
-    OTPVerificationSerializer,
-    PasswordResetRequestSerializer,
+    ChangePasswordSerializer,
+    OtpVarificationSerializer,
     PasswordResetSerializer,
+    ResetPasswordRequestSerializer,
     UserLoginSerializer,
     UserProfileSerializer,
     UserRegistratioinSerializer,
@@ -15,6 +16,7 @@ from Accounts.serializers import (
 
 from rest_framework_simplejwt.views import TokenVerifyView
 from rest_framework import permissions
+from rest_framework.permissions import IsAuthenticated
 from rest_framework import generics, status
 from Accounts.models import CustomUserModel, UserProfile
 
@@ -25,7 +27,6 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
-
 
 @method_decorator(csrf_exempt, name='dispatch')
 class UserRegistrationView(generics.CreateAPIView):
@@ -48,7 +49,6 @@ class UserRegistrationView(generics.CreateAPIView):
                 'last_name': user.last_name,
             }
         }, status=status.HTTP_201_CREATED)
-
 
 @method_decorator(csrf_exempt, name='dispatch')
 class UserLoginView(APIView):
@@ -135,7 +135,6 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
         serializer.save()
         return Response(serializer.data)
 
-
 class CustomTokenRefreshView(TokenRefreshView):
     """
     Reads refresh token from HTTP-only cookie, refreshes access and refresh tokens,
@@ -205,7 +204,6 @@ class CustomTokenVerifyView(TokenVerifyView):
 
         return Response({'detail': 'token_is_valid'}, status=status.HTTP_200_OK)
     
-
 class LogoutView(APIView):
     """
     View to handle user logout. it should delete the access and refresh tokens from cookies.
@@ -221,62 +219,65 @@ class LogoutView(APIView):
 
         return response
     
-class ResetPasswordApiView(generics.GenericAPIView):
-    serializer_class = PasswordResetRequestSerializer
+class ChangePasswordAPIView(generics.GenericAPIView):
+    serializer_class = ChangePasswordSerializer
+    permission_classes = [permissions.IsAuthenticated]  # Since you need to check old_password
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()  # This handles set_password and user.save()
+        
+        return Response({'detail': 'Password changed successfully.'}, status=status.HTTP_200_OK)
+
+class ResetPasswordRequestAPIView(generics.GenericAPIView):
+    serializer_class = ResetPasswordRequestSerializer
     permission_classes = [permissions.AllowAny]
 
     def post(self, request, *args, **kwargs):
-        serializer = self.serializer_class(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        email = serializer.validated_data['email']
+        serializer = ResetPasswordRequestSerializer(data=request.data)
+        if serializer.is_valid():
+            return Response({
+                'Success': True,
+                'message': 'OTP sent to your email. Please check your mail inbox.'
+            }, status=status.HTTP_200_OK)
         
-class PasswordResetRequestAPIView(APIView):
-    permission_classes = []
+        return Response({
+            'Success': False,
+            'message': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+class OtpVerificationAPIView(generics.GenericAPIView):
+    serializer_class = OtpVarificationSerializer
+    permission_classes = [permissions.AllowAny]
 
-    def post(self, request):
-        serializer = PasswordResetRequestSerializer(data=request.data)
+    def post(self, request, *args, **kwargs):
+        serializer = OtpVarificationSerializer(data=request.data)
         if serializer.is_valid():
-            return Response(
-                {"success": True, "message": "OTP sent to email."}, 
-                status=status.HTTP_200_OK
-            )
-        return Response(
-            {"success": False, "errors": serializer.errors}, 
-            status=status.HTTP_400_BAD_REQUEST
-        )
+            return Response({
+                'Success': True,
+                'message': 'OTP verified successfully. You can now reset your password.'
+            }, status=status.HTTP_200_OK)
+        
+        return Response({
+            'Success': False,
+            'message': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+class PasswordResetAPIView(generics.GenericAPIView):
+    serializer_class = PasswordResetSerializer
+    permission_classes = [permissions.AllowAny]
 
-
-
-class OTPVerificationAPIView(APIView):
-    permission_classes = []
-
-    def post(self, request):
-        serializer = OTPVerificationSerializer(data=request.data)
-        if serializer.is_valid():
-            return Response(
-                {"success": True, "message": "OTP verified successfully."},
-                status=status.HTTP_200_OK,
-            )
-        return Response(
-            {"success": False, "errors": serializer.errors},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-
-
-
-class PasswordResetAPIView(APIView):
-    permission_classes = []
-
-    def post(self, request):
+    def post(self, request, *args, **kwargs):
         serializer = PasswordResetSerializer(data=request.data)
+
         if serializer.is_valid():
-            serializer.save()
-            return Response(
-                {"success": True, "message": "Password reset successfully."},
-                status=status.HTTP_200_OK,
-            )
-        return Response(
-            {"success": False, "errors": serializer.errors},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+            return Response({
+                'Success': True,
+                'message': 'Password reset successfully.'
+            }, status=status.HTTP_200_OK)
+        
+        return Response({
+            'Success': False,
+            'message': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)

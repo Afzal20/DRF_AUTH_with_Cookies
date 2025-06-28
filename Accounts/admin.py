@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.utils.translation import gettext_lazy as _
-from .models import CustomUserModel, DeleteAccuntsList, EmailOTP, UserProfile
+from .models import CustomUserModel, DeleteAccuntsList, UserProfile
 
 
 class CustomUserAdmin(UserAdmin):
@@ -32,13 +32,6 @@ class CustomUserProfileAdmin(admin.ModelAdmin):
     list_filter = ('first_name', 'last_name', 'phone_number', 'district', 'upozila',)
 
     ordering = ('user__email',)
-
-class EmailOTPAdmin(admin.ModelAdmin):
-    models = EmailOTP
-    list_display = ('user', 'otp', 'expires_at', 'created_at')
-    list_filter = ('user', 'expires_at', 'created_at')
-
-    ordering = ('-created_at',)
     
 class DeleteAccuntsListAdmin(admin.ModelAdmin):
     models = DeleteAccuntsList
@@ -50,5 +43,4 @@ class DeleteAccuntsListAdmin(admin.ModelAdmin):
 
 admin.site.register(CustomUserModel, CustomUserAdmin)
 admin.site.register(UserProfile, CustomUserProfileAdmin)
-admin.site.register(EmailOTP, EmailOTPAdmin)
 admin.site.register(DeleteAccuntsList, DeleteAccuntsListAdmin)
