@@ -4,6 +4,9 @@ from django.contrib.auth import get_user_model
 from .models import UserProfile
 from django.contrib.auth import authenticate
 from django.core.mail import send_mail as send_email
+from rest_framework_simplejwt.tokens import UntypedToken
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
@@ -145,3 +148,26 @@ class PasswordResetSerializer(serializers.Serializer):
 
         return user
     
+class TokenVerificationSerializer(serializers.Serializer):
+    """
+    Serializer for verifying access tokens from cookies
+    """
+    def validate_token(self, access_token):
+        """
+        Validates the access token and returns user info if valid
+        """
+        try:
+            # Validate the token
+            UntypedToken(access_token)
+            
+            # If we reach here, token is valid
+            return {
+                'valid': True,
+                'message': 'Token is valid'
+            }
+        except (InvalidToken, TokenError) as e:
+            return {
+                'valid': False,
+                'message': 'Invalid or expired token'
+            }
+

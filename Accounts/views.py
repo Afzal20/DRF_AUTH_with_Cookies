@@ -9,6 +9,7 @@ from Accounts.serializers import (
     OtpVarificationSerializer,
     PasswordResetSerializer,
     ResetPasswordRequestSerializer,
+    TokenVerificationSerializer,
     UserLoginSerializer,
     UserProfileSerializer,
     UserRegistratioinSerializer,
@@ -281,3 +282,65 @@ class PasswordResetAPIView(generics.GenericAPIView):
             'Success': False,
             'message': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class TokenVerificationView(APIView):
+    """
+    View to verify access token from cookies.
+    If token is valid, responds with success.
+    If token is invalid, responds with error message.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    @swagger_auto_schema(
+        responses={
+            200: openapi.Response(
+                description="Token verification result",
+                examples={
+                    "application/json": {
+                        "valid": True,
+                        "message": "Token is valid"
+                    }
+                }
+            ),
+            401: openapi.Response(
+                description="Token invalid or not provided",
+                examples={
+                    "application/json": {
+                        "valid": False,
+                        "message": "Invalid or expired token"
+                    }
+                }
+            )
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        # Get access token from cookies
+        access_token = request.COOKIES.get('access_token')
+        
+        if not access_token:
+            return Response({
+                'valid': False,
+                'message': 'Access token not provided in cookies'
+            }, status=status.HTTP_401_UNAUTHORIZED)
+        
+        # Use serializer to validate token
+        serializer = TokenVerificationSerializer()
+        result = serializer.validate_token(access_token)
+        
+        if result['valid']:
+            return Response({
+                'valid': True,
+                'message': 'Token is valid'
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                'valid': False,
+                'message': result['message']
+            }, status=status.HTTP_401_UNAUTHORIZED)
+
+    def get(self, request, *args, **kwargs):
+        """
+        GET method for token verification - same functionality as POST
+        """
+        return self.post(request, *args, **kwargs)

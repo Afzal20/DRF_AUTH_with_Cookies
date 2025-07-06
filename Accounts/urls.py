@@ -9,6 +9,7 @@ from Accounts.views import (
     OtpVerificationAPIView,
     PasswordResetAPIView,
     ResetPasswordRequestAPIView, 
+    TokenVerificationView,
     UserLoginView, 
     UserProfileView, 
     UserRegistrationView
@@ -23,6 +24,7 @@ urlpatterns = [
     path('password/change/', ChangePasswordAPIView.as_view(), name='password_change'),
     path('token/refresh/', CustomTokenRefreshView.as_view(), name='token_refresh'),
     path('token/verify/', CustomTokenVerifyView.as_view(), name='token_verify'),
+    path('token/verify-access/', TokenVerificationView.as_view(), name='token_verify_access'),
     path('logout/', LogoutView.as_view(), name='user_logout'),
 
     path('password-reset/request/', ResetPasswordRequestAPIView.as_view(), name='password_reset_request'),
